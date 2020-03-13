@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import {filesChangedSince, goal, GoalInvocation, PushListenerInvocation, pushTest, whenPushSatisfies} from "@atomist/sdm";
+import {filesChangedSince, goal, GoalInvocation, PushListenerInvocation, pushTest} from "@atomist/sdm";
 import {configure} from "@atomist/sdm-core";
 
 /**
@@ -39,8 +39,20 @@ export const configuration = configure<{}>(async sdm => {
             return false;
         });
 
-    sdm.withPushRules(
-        whenPushSatisfies(modifiesReadme)
-            .setGoals(messageGoal),
-    );
+    /**
+     * The data structure below is equivalent to the following code:
+     *
+     *     const readme = goals("readme").plan(messageGoal);
+     *
+     *     sdm.withPushRules(
+     *        whenPushSatisfies(modifiesReadme)
+     *            .setGoals(readme),
+     *    );
+     */
+    return {
+        readme: {
+            test: modifiesReadme,
+            goals: messageGoal,
+        },
+    };
 });
