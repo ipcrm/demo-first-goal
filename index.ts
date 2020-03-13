@@ -14,34 +14,33 @@
  * limitations under the License.
  */
 
-import { AnyPush } from "@atomist/sdm";
-import { configure } from "@atomist/sdm-core";
-import { HelloWorldGoalConfigurer } from "./lib/goals/goalConfigurer";
-import { HelloWorldGoalCreator } from "./lib/goals/goalCreator";
-import { HelloWorldGoals } from "./lib/goals/goals";
+import {filesChangedSince, goal, GoalInvocation, PushListenerInvocation, pushTest, whenPushSatisfies} from "@atomist/sdm";
+import {configure} from "@atomist/sdm-core";
 
 /**
  * The main entry point into the SDM
  */
-export const configuration = configure<HelloWorldGoals>(async sdm => {
-
-    // Use the sdm instance to configure commands etc
-    sdm.addCommand({
-        name: "HelloWorld",
-        description: "Command that responds with a 'hello world'",
-        listener: async ci => {
-            await ci.addressChannels("Hello World");
+export const configuration = configure<{}>(async sdm => {
+    const messageGoal = goal(
+        {
+            displayName: "Print a message",
         },
-    });
+        async (goalInvocation: GoalInvocation) => {
+            await goalInvocation.addressChannels("Way to update the README! 😍");
+        });
 
-    // Create goals and configure them
-    const goals = await sdm.createGoals(HelloWorldGoalCreator, [HelloWorldGoalConfigurer]);
+    const modifiesReadme = pushTest(
+        "modifiesReadme",
+        async (pushListenerInvocation: PushListenerInvocation) => {
+            const changedFiles = await filesChangedSince(pushListenerInvocation.project, pushListenerInvocation.push);
+            if (changedFiles) {
+                return changedFiles.includes("README.md");
+            }
+            return false;
+        });
 
-    // Return all push rules
-    return {
-        hello: {
-            test: AnyPush,
-            goals: goals.helloWorld,
-        },
-    };
+    sdm.withPushRules(
+        whenPushSatisfies(modifiesReadme)
+            .setGoals(messageGoal),
+    );
 });
